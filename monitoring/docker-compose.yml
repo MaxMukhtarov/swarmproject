@@ -1,0 +1,67 @@
+networks:
+  backend:
+    external: true
+  monitoring:
+    driver: overlay
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  victoriametrics_data:
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+      - backend
+    ports:
+      - "9090:9090"
+    deploy:
+      replicas: 1
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    deploy:
+      replicas: 1
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    volumes:
+      - victoriametrics_data:/victoria-metrics-data
+    networks:
+      - monitoring
+    ports:
+      - "8428:8428"
+    deploy:
+      replicas: 1
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - "/:/host:ro,rslave"
+    networks:
+      - monitoring
+    deploy:
+      mode: global
+
+configs:
+  prometheus_config:
+    file: ./prometheus/prometheus.yml
